@@ -48,7 +48,7 @@ Navigate to *Interface Options* -> *Camera* -> *Enable*.
    ```
 
 4. Visit your raspberry pi IP address in port 5000 under /video_feed (E.g. `192.168.1.5:5000/video_feed`) in your browser
-![Demo image](./img/demo.png)
+![Demo image](./img/demo.jpg)
 
 ## Files and Directories
 - `main.py`: The main script to control the camera and process images.
