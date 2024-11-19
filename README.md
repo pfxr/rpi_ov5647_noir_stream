@@ -40,7 +40,7 @@ Navigate to *Interface Options* -> *Camera* -> *Enable*.
    cd your-repo-name
    ```
 
-2. Connect the OV5647 camera module and IR lights to your Raspberry Pi.
+2. Connect the OV5647 camera module and IR lights. Then insert the CSI-2 ribbon cable in your Raspberry Pi.
 
 3. Run the main script to capture images or process video streams:
    ```bash
