@@ -13,11 +13,11 @@ class ir_camera:
     THRESHOLD = 80
     ASSIGN_VALUE = 255
 
-    def __init__(self, app, notification=None):
+    def __init__(self, app, auto_start=True):
+        self.notifications = list()
+
         self.app = app
         self.app.add_url_rule('/video_feed', 'video_feed', self.video_feed)
-
-        self.notification = notification
 
         # Here we load up the tuning for the HQ cam and alter the default exposure profile.
         # For more information on what can be changed, see chapter 5 in
@@ -42,7 +42,9 @@ class ir_camera:
         # Target for 30 FPS (probably not going to get it)
         self.picam2.set_controls({"FrameRate": self.MAX_FRAMES})
 
-#    @app.route('/video_feed')
+    def register_notification(self, notification):
+        self.notifications.append(notification)
+
     def video_feed(self):
         """Video streaming route. Put this in the src attribute of an img tag."""
         return Response(self.gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
@@ -102,8 +104,8 @@ class ir_camera:
                     if motion_detected:
                         logger.info("Motion Detected")
 
-                        if self.notification != None:
-                            self.notification("Motion Detected\n See at: http://192.168.1.110:5000/video_feed")
+                        for notification in self.notifications:
+                            notification("Motion Detected\n See at: http://192.168.1.110:5000/video_feed")
 
                 # Process the frame (e.g., convert to JPEG)
                 ret, buffer = cv2.imencode('.jpg', frame)

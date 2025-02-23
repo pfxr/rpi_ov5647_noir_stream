@@ -16,8 +16,7 @@ TOKEN = ""
 
 #trequest = HTTPXRequest(connection_pool_size=20)
 #bot = Bot(token=TOKEN, request=trequest)
-bot = Bot(token=TOKEN)
-
+bot = None
 
 
 async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -42,8 +41,13 @@ def send_message(message):
         except Exception as e:
             print(f"Failed to send message to {chat_id}: {e}")
 
-def init():
-    application = Application.builder().token(TOKEN).build()
+def init(token):
+    global bot
+
+    application = Application.builder().token(token).build()
+    bot = Bot(token)
+
+    # Add handlers
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("hello", hello))
     application.run_polling()
