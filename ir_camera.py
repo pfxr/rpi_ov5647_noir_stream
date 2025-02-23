@@ -2,16 +2,22 @@ from picamera2 import Picamera2, Preview
 from flask import Flask, Response
 import numpy as np
 import cv2
+import logging
 
+# Enable logging
+logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class ir_camera:
     MAX_FRAMES = 30
     THRESHOLD = 80
     ASSIGN_VALUE = 255
 
-    def __init__(self, app):
+    def __init__(self, app, notification=None):
         self.app = app
         self.app.add_url_rule('/video_feed', 'video_feed', self.video_feed)
+
+        self.notification = notification
 
         # Here we load up the tuning for the HQ cam and alter the default exposure profile.
         # For more information on what can be changed, see chapter 5 in
@@ -94,7 +100,10 @@ class ir_camera:
                     motion_detected = self.detect_motion(motion_mask)
 
                     if motion_detected:
-                        print("Motion Detected")
+                        logger.info("Motion Detected")
+
+                        if self.notification != None:
+                            self.notification("Motion Detected\n See at: http://192.168.1.110:5000/video_feed")
 
                 # Process the frame (e.g., convert to JPEG)
                 ret, buffer = cv2.imencode('.jpg', frame)
