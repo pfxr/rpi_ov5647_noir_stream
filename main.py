@@ -5,9 +5,6 @@ from flask import Flask
 from ir_camera import ir_camera
 import json
 
-# Read configs.json
-
-
 # Initialize main objects
 app = Flask(__name__)
 cam = ir_camera(app)
