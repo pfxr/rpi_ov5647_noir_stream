@@ -3,6 +3,7 @@ from flask import Flask, Response
 import numpy as np
 import cv2
 import logging
+from motion_detection import motion_detection
 
 # Enable logging
 logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO)
@@ -10,14 +11,15 @@ logger = logging.getLogger(__name__)
 
 class ir_camera:
     MAX_FRAMES = 30
-    THRESHOLD = 80
-    ASSIGN_VALUE = 255
-
-    def __init__(self, app, auto_start=True):
+    def __init__(self):
+        self.video_callbacks = list()
         self.notifications = list()
 
-        self.app = app
-        self.app.add_url_rule('/video_feed', 'video_feed', self.video_feed)
+        # Initialize motion detection framework
+        self.motion_detection = motion_detection()
+
+        # Disable motion detection by default
+        self.enable_motion_detection = False
 
         # Here we load up the tuning for the HQ cam and alter the default exposure profile.
         # For more information on what can be changed, see chapter 5 in
@@ -45,16 +47,8 @@ class ir_camera:
     def register_notification(self, notification):
         self.notifications.append(notification)
 
-    def video_feed(self):
-        """Video streaming route. Put this in the src attribute of an img tag."""
-        return Response(self.gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
-
-    def detect_motion(self, frame):
-        # Count nonzero pixels (indicating motion)
-        motion_pixels = np.count_nonzero(frame)
-
-        # Motion detected if enough pixels changed
-        return motion_pixels > 120
+    def register_callback(self, callback):
+        self.video_callbacks.append(callback)
 
     def merge_frames(self, frame1, frame2):
         # Decode both frames (assuming they are JPEG images)
@@ -76,47 +70,44 @@ class ir_camera:
         _, merged_frame = cv2.imencode('.jpg', merged_img)
         return merged_frame.tobytes()
 
+    def start_motion_detection(self):
+        self.enable_motion_detection = True
+
+    def stop_motion_detection(self):
+        self.enable_motion_detection = False
+
     def gen_frames(self):
         """Generate video frames."""
         while True:
-            for t in range(self.MAX_FRAMES):
-                # Capture frame-by-frame
+            # Capture frame-by-frame
                 frame = self.picam2.capture_array()
                 #frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
                 # Flip verticaly and horizontaly
                 frame = cv2.flip(frame, -1)
 
-                # Convert to gray scale
-                frame_gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+                # Process the frame (e.g., convert to JPEG)
+                ret, buffer = cv2.imencode('.jpg', frame)
+                frame_bytes = buffer.tobytes()
 
-                # Ignore the first frame
-                if t == 0:
-                    background = frame_gray
-                    continue
+                if self.enable_motion_detection == True:
+                    motion_detected, motion_mask = self.motion_detection.calculate_motion(frame)
 
-                # Use remaining frames to detect motion
-                else:
-                    diff = cv2.absdiff(background, frame_gray)
-                    ret, motion_mask = cv2.threshold(diff, self.THRESHOLD, self.ASSIGN_VALUE, cv2.THRESH_BINARY)
-                    motion_detected = self.detect_motion(motion_mask)
+                    # Process motion mask
+                    ret, buffer = cv2.imencode('.jpg', motion_mask)
+                    motion_mask = buffer.tobytes()
+
+                    merged_frame = self.merge_frames(frame_bytes, motion_mask)
 
                     if motion_detected:
                         logger.info("Motion Detected")
 
                         for notification in self.notifications:
                             notification("Motion Detected\n See at: http://192.168.1.110:5000/video_feed")
+                else:
+                    merged_frame = frame_bytes
 
-                # Process the frame (e.g., convert to JPEG)
-                ret, buffer = cv2.imencode('.jpg', frame)
-                frame = buffer.tobytes()
-
-                # Process motion mask
-                ret, buffer = cv2.imencode('.jpg', motion_mask)
-                motion_mask = buffer.tobytes()
-
-                merged_frame = self.merge_frames(frame, motion_mask)
                 # Yield the frame
-                yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + merged_frame + b'\r\n')
-
+                for callback in self.video_callbacks:
+                    callback(merged_frame)
 

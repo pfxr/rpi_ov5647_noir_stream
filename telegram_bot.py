@@ -14,24 +14,44 @@ user_chat_ids = set()
 # Telegram Bot Token (replace with your actual token)
 TOKEN = ""
 
-#trequest = HTTPXRequest(connection_pool_size=20)
-#bot = Bot(token=TOKEN, request=trequest)
+# Initialize global bot variable
 bot = None
 
+# Unpuplated callbacks
+start_video_calback = None
+start_motion_detection_calback = None
+
+
+def register_start_video_callback(func):
+    global start_video_calback
+    start_video_calback = func
+
+def register_start_motion_detection_callback(func):
+    global start_motion_detection_calback
+    start_motion_detection_calback = func
 
 async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     logger.info(f"Received message: {update.message.text}")
     await update.message.reply_text(update.message.text)
 
 # Telegram Bot Handlers
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def start_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Add chat id to users
     user_chat_ids.add(update.message.chat.id)  # Save the chat_id of new users
 
-    await update.message.reply_text("Registered, you'll start receiving notifications")
+    start_video_calback()
 
-async def hello(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(f"Hello, {update.effective_user.first_name}!")
+    await update.message.reply_text("Starting video, check http://192.168.1.110/video_feed")
+
+async def start_motion_detection(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Add chat id to users
+    user_chat_ids.add(update.message.chat.id)  # Save the chat_id of new users
+
+    start_motion_detection_calback()
+
+    await update.message.reply_text("Starting motion detection")
+
+
 
 # Function to send a message without a command
 def send_message(message):
@@ -48,7 +68,8 @@ def init(token):
     bot = Bot(token)
 
     # Add handlers
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("hello", hello))
+    application.add_handler(CommandHandler("start_video", start_video))
+    application.add_handler(CommandHandler("start_motion_detection", start_motion_detection))
+
     application.run_polling()
 
